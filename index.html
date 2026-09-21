@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個人質感儀表板</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+
+        .shadow-soft {
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+        }
+
+        .shadow-soft-hover:hover {
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-indigo-500 selection:text-white pb-12 transition-colors duration-300">
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-[150] flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- Password Authentication Modal Overlay -->
+    <div id="auth-overlay" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-all duration-300">
+        <div class="glass-card bg-white/95 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center border border-white/40 transform transition-all scale-100" id="auth-card">
+            <div class="w-16 h-16 bg-gradient-to-tr from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
+                <i data-lucide="lock" class="w-8 h-8 text-white"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-1">儀表板已鎖定</h2>
+            <p class="text-xs text-slate-500 mb-6">請輸入安全密碼以存取您的個人儀表板</p>
+            
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div class="relative">
+                    <input type="password" id="login-password-input" placeholder="請輸入密碼 (預設: 123456)" autofocus class="w-full pl-10 pr-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white text-center tracking-widest transition-all">
+                    <i data-lucide="key-round" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
+                </div>
+                <p id="auth-error-msg" class="text-xs text-rose-500 font-medium hidden">密碼錯誤，請重新輸入！</p>
+                <button type="submit" class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold text-sm rounded-2xl shadow-lg shadow-indigo-200 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <i data-lucide="unlock" class="w-4 h-4"></i>
+                    解鎖儀表板
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Confirm Dialog Modal -->
+    <div id="confirm-modal" class="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden">
+        <div class="glass-card bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 text-center">
+            <div class="w-12 h-12 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 id="confirm-title" class="text-lg font-bold text-slate-800 mb-1">確認執行操作？</h3>
+            <p id="confirm-text" class="text-xs text-slate-500 mb-6">這項操作可能無法恢復，請問確定要繼續嗎？</p>
+            <div class="flex items-center gap-3">
+                <button onclick="closeConfirmModal(false)" class="flex-1 py-2.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all">取消</button>
+                <button onclick="closeConfirmModal(true)" class="flex-1 py-2.5 text-xs font-semibold text-white bg-rose-500 hover:bg-rose-600 rounded-xl shadow-md shadow-rose-200 transition-all">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal (Google Sheet App URL) -->
+    <div id="settings-modal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden">
+        <div class="glass-card bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-800">同步設定</h3>
+                </div>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="saveSettings(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Google Apps Script Web App URL</label>
+                    <input type="url" id="gsheet-url-input" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <p class="text-[11px] text-slate-400 mt-1">貼上您的 Google Apps Script 網路應用程式 URL 以同步待辦與記事。</p>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">取消</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md shadow-indigo-200">儲存設定</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add / Edit Note Modal -->
+    <div id="note-modal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden">
+        <div class="glass-card bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-100">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                        <i data-lucide="file-text" class="w-5 h-5"></i>
+                    </div>
+                    <h3 id="note-modal-title" class="font-bold text-slate-800">新增隨手記事</h3>
+                </div>
+                <button onclick="closeNoteModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form onsubmit="handleSaveNote(event)" class="space-y-4">
+                <input type="hidden" id="note-id-input">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">標題</label>
+                    <input type="text" id="note-title-input" required placeholder="請輸入記事標題..." class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">內容</label>
+                    <textarea id="note-content-input" rows="5" required placeholder="寫下您的想法、草稿或筆記..." class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="closeNoteModal()" class="px-4 py-2 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl">取消</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl shadow-md shadow-amber-200">儲存記事</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard Container -->
+    <div id="main-dashboard" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 transition-all duration-300 blur-sm pointer-events-none select-none">
+        
+        <!-- Header / Navigation Bar -->
+        <header class="flex items-center justify-between py-4 mb-6 glass-card rounded-2xl px-6 shadow-soft">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-200">
+                    <i data-lucide="layout-dashboard" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-800 leading-tight">個人質感儀表板</h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">Personal Productivity Dashboard</p>
+                </div>
+            </div>
+
+            <!-- Sync Indicator & Action Controls -->
+            <div class="flex items-center gap-2">
+                <div id="gsheet-sync-badge" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-medium">
+                    <span class="w-2 h-2 rounded-full bg-slate-400" id="sync-dot"></span>
+                    <span id="sync-text">未設定試算表</span>
+                </div>
+                <button onclick="lockDashboard()" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all flex items-center gap-1.5 text-xs font-semibold" title="鎖定儀表板">
+                    <i data-lucide="lock" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">鎖定</span>
+                </button>
+                <button onclick="openSettingsModal()" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all" title="設定 Google 試算表同步">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Content Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+
+            <!-- 1. Clock & Weather Widget -->
+            <div class="glass-card rounded-3xl p-6 shadow-soft flex flex-col justify-between hover:shadow-soft-hover transition-all duration-300">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2 text-indigo-600">
+                        <i data-lucide="clock" class="w-5 h-5"></i>
+                        <span class="text-xs font-bold tracking-wider uppercase">即時時間 & 天氣</span>
+                    </div>
+                    <select id="city-select" onchange="changeCity(this.value)" class="text-xs bg-slate-100 border-none font-semibold text-slate-600 rounded-lg px-2 py-1 focus:outline-none cursor-pointer">
+                        <option value="Taipei">臺北</option>
+                        <option value="New Taipei">新北</option>
+                        <option value="Taichung">臺中</option>
+                        <option value="Kaohsiung">高雄</option>
+                        <option value="Tokyo">東京</option>
+                    </select>
+                </div>
+
+                <div class="my-2">
+                    <div id="clock-time" class="text-4xl font-extrabold text-slate-800 tracking-tight font-mono">00:00:00</div>
+                    <div id="clock-date" class="text-xs font-semibold text-slate-400 mt-1">2026 年 01 月 01 日 星期一</div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div id="weather-icon-box" class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                            <i data-lucide="sun" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <div id="weather-temp" class="text-sm font-bold text-slate-700">22°C</div>
+                            <div id="weather-desc" class="text-xs text-slate-400">晴朗</div>
+                        </div>
+                    </div>
+                    <button onclick="fetchWeather()" class="p-1.5 text-slate-400 hover:text-indigo-600 rounded-lg transition-all" title="更新天氣">
+                        <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. Pomodoro Timer Widget -->
+            <div class="glass-card rounded-3xl p-6 shadow-soft flex flex-col justify-between hover:shadow-soft-hover transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-rose-500">
+                        <i data-lucide="timer" class="w-5 h-5"></i>
+                        <span class="text-xs font-bold tracking-wider uppercase">番茄鐘專注</span>
+                    </div>
+                    <span id="pomo-count-display" class="text-xs font-bold bg-rose-50 text-rose-600 px-2.5 py-0.5 rounded-full">0 次</span>
+                </div>
+
+                <div class="text-center my-3">
+                    <div id="pomo-timer-display" class="text-4xl font-black text-slate-800 font-mono tracking-wider">25:00</div>
+                    <div id="pomo-mode-label" class="text-xs font-semibold text-slate-400 mt-1">專注時間</div>
+                </div>
+
+                <div class="flex items-center justify-center gap-2">
+                    <button onclick="togglePomodoro()" id="pomo-start-btn" class="flex-1 py-2 bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs rounded-xl shadow-md shadow-rose-200 transition-all flex items-center justify-center gap-1">
+                        <i data-lucide="play" class="w-3.5 h-3.5" id="pomo-btn-icon"></i>
+                        <span id="pomo-btn-text">開始</span>
+                    </button>
+                    <button onclick="resetPomodoro()" class="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all" title="重置">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Quick Bookmarks Widget -->
+            <div class="glass-card rounded-3xl p-6 shadow-soft flex flex-col justify-between hover:shadow-soft-hover transition-all duration-300">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2 text-emerald-600">
+                        <i data-lucide="bookmark" class="w-5 h-5"></i>
+                        <span class="text-xs font-bold tracking-wider uppercase">快捷書籤</span>
+                    </div>
+                    <button onclick="addBookmark()" class="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="新增書籤">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <div id="bookmarks-list" class="grid grid-cols-2 gap-2 max-h-[140px] overflow-y-auto pr-1">
+                    <!-- Dynamic Bookmarks -->
+                </div>
+            </div>
+
+            <!-- 4. Interactive Calendar Widget -->
+            <div class="glass-card rounded-3xl p-6 shadow-soft flex flex-col hover:shadow-soft-hover transition-all duration-300">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2 text-sky-600">
+                        <i data-lucide="calendar" class="w-5 h-5"></i>
+                        <span id="calendar-month-title" class="text-xs font-bold tracking-wider">2026年 1月</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="prevMonth()" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
+                            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="nextMonth()" class="p-1 text-slate-400 hover:text-slate-700 rounded-lg">
+                            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 mb-1">
+                    <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+                </div>
+
+                <div id="calendar-days-grid" class="grid grid-cols-7 gap-1 text-center text-xs font-medium">
+                    <!-- Dynamic Calendar Grid -->
+                </div>
+            </div>
+
+            <!-- 5. To-Do List Widget (Col Span 2) -->
+            <div class="md:col-span-2 lg:col-span-2 xl:col-span-2 glass-card rounded-3xl p-6 shadow-soft flex flex-col hover:shadow-soft-hover transition-all duration-300">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <div class="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                            <i data-lucide="check-square" class="w-5 h-5"></i>
+                        </div>
+                        <span class="font-semibold text-slate-700">待辦事項</span>
+                        <span id="todo-count-badge" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">0/0</span>
+                    </div>
+                    <button onclick="fetchTodosFromGSheet()" id="gsheet-todo-refresh-btn" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="重新整理 Google 試算表">
+                        <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Input Row -->
+                <form onsubmit="addTodo(event)" class="flex gap-2 mb-4">
+                    <input type="text" id="todo-input" required placeholder="新增任務內容..." class="flex-1 px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="date" id="todo-date-input" class="px-2 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none text-slate-600">
+                    <button type="submit" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-indigo-200 transition-all active:scale-95 flex items-center gap-1">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        新增
+                    </button>
+                </form>
+
+                <!-- Todo List Items -->
+                <div id="todo-list" class="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                    <!-- Dynamic To-Do Items -->
+                </div>
+            </div>
+
+            <!-- 6. Personal Notes Widget (Col Span 2) -->
+            <div class="md:col-span-2 lg:col-span-2 xl:col-span-2 glass-card rounded-3xl p-6 shadow-soft flex flex-col hover:shadow-soft-hover transition-all duration-300">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <div class="p-2 bg-amber-50 text-amber-600 rounded-xl shrink-0">
+                            <i data-lucide="notebook-pen" class="w-5 h-5"></i>
+                        </div>
+                        <span class="font-semibold text-slate-700">隨手記事本</span>
+                        <span id="notes-count-badge" class="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">0</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="fetchNotesFromGSheet()" id="gsheet-notes-refresh-btn" class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title="重新整理 Google 試算表記事">
+                            <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="openNoteModal()" class="text-xs bg-amber-500 text-white hover:bg-amber-600 font-semibold px-3 py-2 rounded-xl transition-all shadow-md shadow-amber-200 flex items-center gap-1 active:scale-95">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            新增記事
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Notes Grid Container -->
+                <div id="notes-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[260px] overflow-y-auto pr-1">
+                    <!-- Dynamic Note Cards -->
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Global Application State Variables
+        const DASHBOARD_PASSWORD = '123456';
+        let isAuthenticated = sessionStorage.getItem('dashboard_authenticated') === 'true';
+
+        let gsheetUrl = localStorage.getItem('dashboard_gsheet_url') || 'https://script.google.com/macros/s/AKfycbwv1TS7_sjriiFlHP7wLl6LXAr2asx5BST5TF5iwCgYigMtq4GSn_1oKVA98nmarn6F/exec';
+        let currentCity = localStorage.getItem('dashboard_city') || 'Taipei';
+
+        let confirmCallback = null;
+
+        let todos = JSON.parse(localStorage.getItem('dashboard_todos_list')) || [
+            { id: '1', title: '完成儀表板基本部署', completed: true, dueDate: new Date().toISOString().split('T')[0] },
+            { id: '2', title: '設定 Google 試算表同步連結', completed: false, dueDate: new Date().toISOString().split('T')[0] }
+        ];
+
+        let notes = JSON.parse(localStorage.getItem('dashboard_notes_list')) || [
+            { id: '1', title: '歡迎使用隨手記事', content: '這裡可以記錄隨手靈感、待辦規劃或各類備忘，並會同步備份至 Google 試算表！', date: new Date().toLocaleDateString('zh-TW') }
+        ];
+
+        let bookmarks = JSON.parse(localStorage.getItem('dashboard_bookmarks_list')) || [
+            { id: '1', title: 'Google Search', url: 'https://www.google.com' },
+            { id: '2', title: 'YouTube', url: 'https://www.youtube.com' },
+            { id: '3', title: 'GitHub', url: 'https://github.com' }
+        ];
+
+        // Pomodoro State
+        let pomoTime = 25 * 60;
+        let pomoInitialTime = 25 * 60;
+        let pomoTimer = null;
+        let isPomoRunning = false;
+        let pomoCompletedCount = parseInt(localStorage.getItem('dashboard_pomo_count') || '0', 10);
+
+        // Calendar State
+        let currCalendarDate = new Date();
+
+        function checkAuthStatus() {
+            const overlay = document.getElementById('auth-overlay');
+            const mainDash = document.getElementById('main-dashboard');
+            const input = document.getElementById('login-password-input');
+
+            if (isAuthenticated) {
+                if (overlay) overlay.classList.add('hidden');
+                if (mainDash) mainDash.classList.remove('blur-sm', 'pointer-events-none', 'select-none');
+            } else {
+                if (overlay) overlay.classList.remove('hidden');
+                if (mainDash) mainDash.classList.add('blur-sm', 'pointer-events-none', 'select-none');
+                if (input) setTimeout(() => input.focus(), 100);
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const input = document.getElementById('login-password-input');
+            const errorMsg = document.getElementById('auth-error-msg');
+            const card = document.getElementById('auth-card');
+            const val = input ? input.value : '';
+
+            if (val === DASHBOARD_PASSWORD) {
+                isAuthenticated = true;
+                sessionStorage.setItem('dashboard_authenticated', 'true');
+                if (errorMsg) errorMsg.classList.add('hidden');
+                if (input) input.value = '';
+                checkAuthStatus();
+                showToast('歡迎回來', '已成功解鎖儀表板！', 'success');
+            } else {
+                if (errorMsg) errorMsg.classList.remove('hidden');
+                if (input) input.value = '';
+                if (card) {
+                    card.classList.add('animate-shake');
+                    setTimeout(() => card.classList.remove('animate-shake'), 400);
+                }
+            }
+        }
+
+        function lockDashboard() {
+            isAuthenticated = false;
+            sessionStorage.removeItem('dashboard_authenticated');
+            checkAuthStatus();
+            showToast('已鎖定', '儀表板已安全鎖定', 'info');
+        }
+
+        function showToast(title, message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-emerald-500' : type === 'error' ? 'bg-rose-500' : 'bg-slate-800';
+
+            toast.className = `pointer-events-auto p-4 rounded-2xl text-white shadow-xl flex items-start gap-3 transition-all duration-300 transform translate-y-2 ${bgClass}`;
+            toast.innerHTML = `
+                <div class="flex-1">
+                    <h4 class="text-xs font-bold">${title}</h4>
+                    <p class="text-[11px] opacity-90 mt-0.5">${message}</p>
+                </div>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-[-10px]');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function showConfirmModal(title, text, onConfirm) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-text').textContent = text;
+            confirmCallback = onConfirm;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal(result) {
+            document.getElementById('confirm-modal').classList.add('hidden');
+            if (result && typeof confirmCallback === 'function') {
+                confirmCallback();
+            }
+            confirmCallback = null;
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const dateOptions = { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'long' };
+            const dateStr = now.toLocaleDateString('zh-TW', dateOptions);
+
+            const clockTime = document.getElementById('clock-time');
+            const clockDate = document.getElementById('clock-date');
+            if (clockTime) clockTime.textContent = timeStr;
+            if (clockDate) clockDate.textContent = dateStr;
+        }
+
+        async function fetchWeather() {
+            const cityCoords = {
+                'Taipei': { lat: 25.033, lon: 121.565, name: '臺北' },
+                'New Taipei': { lat: 25.012, lon: 121.465, name: '新北' },
+                'Taichung': { lat: 24.147, lon: 120.673, name: '臺中' },
+                'Kaohsiung': { lat: 22.627, lon: 120.301, name: '高雄' },
+                'Tokyo': { lat: 35.676, lon: 139.650, name: '東京' }
+            };
+
+            const coord = cityCoords[currentCity] || cityCoords['Taipei'];
+            try {
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${coord.lat}&longitude=${coord.lon}&current_weather=true`);
+                const data = await res.json();
+                if (data && data.current_weather) {
+                    const temp = Math.round(data.current_weather.temperature);
+                    document.getElementById('weather-temp').textContent = `${temp}°C`;
+                    document.getElementById('weather-desc').textContent = `${coord.name} · 晴朗/微雲`;
+                }
+            } catch (err) {
+                document.getElementById('weather-temp').textContent = '--°C';
+                document.getElementById('weather-desc').textContent = '天氣載入失敗';
+            }
+        }
+
+        function changeCity(city) {
+            currentCity = city;
+            localStorage.setItem('dashboard_city', city);
+            fetchWeather();
+        }
+
+        function updatePomoDisplay() {
+            const mins = Math.floor(pomoTime / 60);
+            const secs = pomoTime % 60;
+            document.getElementById('pomo-timer-display').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function togglePomodoro() {
+            if (isPomoRunning) {
+                clearInterval(pomoTimer);
+                isPomoRunning = false;
+                document.getElementById('pomo-btn-text').textContent = '繼續';
+            } else {
+                isPomoRunning = true;
+                document.getElementById('pomo-btn-text').textContent = '暫停';
+                pomoTimer = setInterval(() => {
+                    if (pomoTime > 0) {
+                        pomoTime--;
+                        updatePomoDisplay();
+                    } else {
+                        clearInterval(pomoTimer);
+                        isPomoRunning = false;
+                        pomoCompletedCount++;
+                        localStorage.setItem('dashboard_pomo_count', pomoCompletedCount);
+                        document.getElementById('pomo-count-display').textContent = `${pomoCompletedCount} 次`;
+                        showToast('專注完成！', '太棒了，完成了一節番茄鐘！', 'success');
+                        resetPomodoro();
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetPomodoro() {
+            clearInterval(pomoTimer);
+            isPomoRunning = false;
+            pomoTime = pomoInitialTime;
+            updatePomoDisplay();
+            document.getElementById('pomo-btn-text').textContent = '開始';
+        }
+
+        function renderBookmarks() {
+            const list = document.getElementById('bookmarks-list');
+            if (!list) return;
+            list.innerHTML = bookmarks.map(b => `
+                <div class="group flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 transition-all text-xs">
+                    <a href="${b.url}" target="_blank" class="truncate font-medium flex-1">${b.title}</a>
+                    <button onclick="deleteBookmark('${b.id}')" class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-0.5 transition-all">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addBookmark() {
+            const title = prompt('請輸入書籤名稱：');
+            if (!title) return;
+            let url = prompt('請輸入網站網址 (例如 https://google.com)：');
+            if (!url) return;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) url = 'https://' + url;
+
+            bookmarks.push({ id: Date.now().toString(), title, url });
+            localStorage.setItem('dashboard_bookmarks_list', JSON.stringify(bookmarks));
+            renderBookmarks();
+            showToast('已新增書籤', title, 'success');
+        }
+
+        function deleteBookmark(id) {
+            bookmarks = bookmarks.filter(b => b.id !== id);
+            localStorage.setItem('dashboard_bookmarks_list', JSON.stringify(bookmarks));
+            renderBookmarks();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-days-grid');
+            const title = document.getElementById('calendar-month-title');
+            if (!grid || !title) return;
+
+            const year = currCalendarDate.getFullYear();
+            const month = currCalendarDate.getMonth();
+            title.textContent = `${year}年 ${month + 1}月`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const lastDate = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+
+            let daysHtml = '';
+            for (let i = 0; i < firstDay; i++) {
+                daysHtml += `<div></div>`;
+            }
+            for (let d = 1; d <= lastDate; d++) {
+                const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+                const activeClass = isToday ? 'bg-sky-500 text-white font-bold rounded-lg shadow-sm' : 'text-slate-600 hover:bg-slate-100 rounded-lg';
+                daysHtml += `<div class="p-1 ${activeClass}">${d}</div>`;
+            }
+            grid.innerHTML = daysHtml;
+        }
+
+        function prevMonth() {
+            currCalendarDate.setMonth(currCalendarDate.getMonth() - 1);
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            currCalendarDate.setMonth(currCalendarDate.getMonth() + 1);
+            renderCalendar();
+        }
+
+        function renderTodos() {
+            const container = document.getElementById('todo-list');
+            const badge = document.getElementById('todo-count-badge');
+            if (!container) return;
+
+            const completed = todos.filter(t => t.completed).length;
+            if (badge) badge.textContent = `${completed}/${todos.length}`;
+
+            if (todos.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">目前沒有待辦事項</p>`;
+                return;
+            }
+
+            container.innerHTML = todos.map(t => `
+                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition-all text-xs border border-slate-100">
+                    <div class="flex items-center gap-2.5 flex-1 min-w-0">
+                        <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTodo('${t.id}')" class="w-4 h-4 accent-indigo-600 rounded cursor-pointer">
+                        <span class="${t.completed ? 'line-through text-slate-400' : 'text-slate-700 font-medium'} truncate">${t.title}</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px] text-slate-400">
+                        <span>${t.dueDate || ''}</span>
+                        <button onclick="deleteTodo('${t.id}')" class="text-slate-400 hover:text-rose-500 p-1">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addTodo(e) {
+            e.preventDefault();
+            const input = document.getElementById('todo-input');
+            const dateInput = document.getElementById('todo-date-input');
+            if (!input || !input.value.trim()) return;
+
+            const newTodo = {
+                id: Date.now().toString(),
+                title: input.value.trim(),
+                completed: false,
+                dueDate: dateInput ? dateInput.value : ''
+            };
+
+            todos.unshift(newTodo);
+            localStorage.setItem('dashboard_todos_list', JSON.stringify(todos));
+            renderTodos();
+            syncTodoToGSheet('create', newTodo);
+
+            input.value = '';
+            showToast('新增成功', '已新增待辦事項！', 'success');
+        }
+
+        function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            if (todo) {
+                todo.completed = !todo.completed;
+                localStorage.setItem('dashboard_todos_list', JSON.stringify(todos));
+                renderTodos();
+                syncTodoToGSheet('update', todo);
+            }
+        }
+
+        function deleteTodo(id) {
+            showConfirmModal('刪除任務', '確定要刪除這項待辦事項嗎？', () => {
+                const todoToDelete = todos.find(t => t.id === id);
+                todos = todos.filter(t => t.id !== id);
+                localStorage.setItem('dashboard_todos_list', JSON.stringify(todos));
+                renderTodos();
+                if (todoToDelete) syncTodoToGSheet('delete', todoToDelete);
+                showToast('已刪除', '待辦事項已順利移除', 'info');
+            });
+        }
+
+        async function fetchTodosFromGSheet() {
+            if (!gsheetUrl) return;
+            const btn = document.getElementById('gsheet-todo-refresh-btn');
+            if (btn) btn.classList.add('animate-spin');
+
+            try {
+                const res = await fetch(`${gsheetUrl}?type=todo&action=read`);
+                const json = await res.json();
+                let rawList = json && json.data ? json.data : Array.isArray(json) ? json : [];
+
+                if (Array.isArray(rawList) && rawList.length > 0) {
+                    todos = rawList.map(item => ({
+                        id: String(item.id || Date.now()),
+                        title: item.title || item.text || item.event || '未命名任務',
+                        completed: item.completed === true || item.completed === '已完成',
+                        dueDate: item.dueDate || item.date || ''
+                    }));
+                    localStorage.setItem('dashboard_todos_list', JSON.stringify(todos));
+                    renderTodos();
+                    showToast('同步成功', '成功從 Google 試算表同步待辦事項！', 'success');
+                }
+            } catch (err) {
+                console.error('Fetch Google Sheets Todos error:', err);
+            } finally {
+                if (btn) btn.classList.remove('animate-spin');
+            }
+        }
+
+        async function syncTodoToGSheet(action, todo) {
+            if (!gsheetUrl) return;
+            try {
+                await fetch(gsheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: action,
+                        type: 'todo',
+                        id: String(todo.id),
+                        title: todo.title || '',
+                        dueDate: todo.dueDate || '',
+                        completed: todo.completed
+                    })
+                });
+            } catch (err) {
+                console.error('Sync Todo Error:', err);
+            }
+        }
+
+        function renderNotes() {
+            const container = document.getElementById('notes-container');
+            const badge = document.getElementById('notes-count-badge');
+            if (!container) return;
+
+            if (badge) badge.textContent = notes.length.toString();
+
+            if (notes.length === 0) {
+                container.innerHTML = `<p class="col-span-full text-xs text-slate-400 text-center py-6">目前沒有隨手記事</p>`;
+                return;
+            }
+
+            container.innerHTML = notes.map(n => `
+                <div class="p-3.5 rounded-2xl bg-amber-50/50 border border-amber-100 hover:bg-amber-50 transition-all flex flex-col justify-between h-32">
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <h4 class="text-xs font-bold text-slate-800 truncate">${n.title}</h4>
+                            <span class="text-[10px] text-amber-600 font-semibold">${n.date || ''}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-600 line-clamp-3 leading-relaxed">${n.content}</p>
+                    </div>
+                    <div class="flex items-center justify-end gap-1.5 pt-1">
+                        <button onclick="openNoteModal('${n.id}')" class="text-slate-400 hover:text-amber-600 p-1">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="deleteNote('${n.id}')" class="text-slate-400 hover:text-rose-500 p-1">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function openNoteModal(id = null) {
+            const modal = document.getElementById('note-modal');
+            const modalTitle = document.getElementById('note-modal-title');
+            const idInput = document.getElementById('note-id-input');
+            const titleInput = document.getElementById('note-title-input');
+            const contentInput = document.getElementById('note-content-input');
+
+            if (id) {
+                const note = notes.find(n => n.id === id);
+                if (note) {
+                    modalTitle.textContent = '編輯記事';
+                    idInput.value = note.id;
+                    titleInput.value = note.title;
+                    contentInput.value = note.content;
+                }
+            } else {
+                modalTitle.textContent = '新增隨手記事';
+                idInput.value = '';
+                titleInput.value = '';
+                contentInput.value = '';
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeNoteModal() {
+            document.getElementById('note-modal').classList.add('hidden');
+        }
+
+        function handleSaveNote(e) {
+            e.preventDefault();
+            const id = document.getElementById('note-id-input').value;
+            const title = document.getElementById('note-title-input').value.trim();
+            const content = document.getElementById('note-content-input').value.trim();
+            const dateStr = new Date().toLocaleDateString('zh-TW');
+
+            if (!title || !content) return;
+
+            if (id) {
+                const updatedNote = { id, title, content, date: dateStr };
+                notes = notes.map(n => n.id === id ? updatedNote : n);
+                syncNoteToGSheet('update', updatedNote);
+                showToast('已更新記事', '記事內容已成功修改！', 'success');
+            } else {
+                const newNote = { id: Date.now().toString(), title, content, date: dateStr };
+                notes.unshift(newNote);
+                syncNoteToGSheet('create', newNote);
+                showToast('已新增記事', '成功新增隨手記事！', 'success');
+            }
+
+            localStorage.setItem('dashboard_notes_list', JSON.stringify(notes));
+            renderNotes();
+            closeNoteModal();
+        }
+
+        function deleteNote(id) {
+            showConfirmModal('刪除記事', '確定要刪除這則記事嗎？此動作無法撤銷。', () => {
+                const noteToDelete = notes.find(n => n.id === id);
+                notes = notes.filter(n => n.id !== id);
+                localStorage.setItem('dashboard_notes_list', JSON.stringify(notes));
+                renderNotes();
+                if (noteToDelete) syncNoteToGSheet('delete', noteToDelete);
+                showToast('已刪除', '記事已順利移除', 'info');
+            });
+        }
+
+        async function fetchNotesFromGSheet() {
+            if (!gsheetUrl) return;
+            const btn = document.getElementById('gsheet-notes-refresh-btn');
+            if (btn) btn.classList.add('animate-spin');
+
+            try {
+                const res = await fetch(`${gsheetUrl}?type=note&action=read`);
+                const json = await res.json();
+                let rawList = json && json.data ? json.data : Array.isArray(json) ? json : [];
+
+                if (Array.isArray(rawList) && rawList.length > 0) {
+                    notes = rawList.map(item => ({
+                        id: String(item.id || Date.now()),
+                        title: item.title || item.text || '未命名記事',
+                        content: item.content || item.text || '',
+                        date: item.date || item.createdDate || new Date().toLocaleDateString('zh-TW')
+                    }));
+                    localStorage.setItem('dashboard_notes_list', JSON.stringify(notes));
+                    renderNotes();
+                    showToast('同步成功', '已成功從 Google 試算表載入隨手記事！', 'success');
+                }
+            } catch (err) {
+                console.error('Fetch Google Sheets Notes error:', err);
+            } finally {
+                if (btn) btn.classList.remove('animate-spin');
+            }
+        }
+
+        async function syncNoteToGSheet(action, note) {
+            if (!gsheetUrl) return;
+            try {
+                await fetch(gsheetUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: action,
+                        type: 'note',
+                        id: String(note.id),
+                        title: note.title || '',
+                        content: note.content || '',
+                        date: note.date || new Date().toLocaleDateString('zh-TW')
+                    })
+                });
+            } catch (err) {
+                console.error('Google Sheet Note Sync Error:', err);
+            }
+        }
+
+        function openSettingsModal() {
+            const input = document.getElementById('gsheet-url-input');
+            if (input) input.value = gsheetUrl;
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function saveSettings(e) {
+            e.preventDefault();
+            const input = document.getElementById('gsheet-url-input');
+            if (input) {
+                gsheetUrl = input.value.trim();
+                localStorage.setItem('dashboard_gsheet_url', gsheetUrl);
+                updateGSheetBadge();
+                if (gsheetUrl) {
+                    fetchTodosFromGSheet();
+                    fetchNotesFromGSheet();
+                }
+            }
+            closeSettingsModal();
+            showToast('設定已儲存', 'Google 試算表同步網址已更新！', 'success');
+        }
+
+        function updateGSheetBadge() {
+            const dot = document.getElementById('sync-dot');
+            const text = document.getElementById('sync-text');
+            if (!dot || !text) return;
+
+            if (gsheetUrl) {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                text.textContent = '試算表已連結';
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                text.textContent = '未設定試算表';
+            }
+        }
+
+        window.onload = function () {
+            checkAuthStatus();
+            lucide.createIcons();
+
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            const datePicker = document.getElementById('todo-date-input');
+            if (datePicker) datePicker.value = new Date().toISOString().split('T')[0];
+
+            updateGSheetBadge();
+            if (gsheetUrl) {
+                fetchTodosFromGSheet();
+                fetchNotesFromGSheet();
+            }
+
+            fetchWeather();
+            renderCalendar();
+            renderBookmarks();
+            renderTodos();
+            renderNotes();
+
+            document.getElementById('pomo-count-display').textContent = `${pomoCompletedCount} 次`;
+        };
+    </script>
+</body>
+</html>
